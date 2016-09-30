@@ -22,5 +22,10 @@
             "name": "Buld",
             "shell_cmd": "cd '${project_path:Default}' && go build"
         },
+
+        {
+            "name": "Dependencies",
+            "shell_cmd": "go get github.com/hashicorp/vault"
+        },
      ]
 }
