@@ -1,6 +1,8 @@
 package config
 
 import (
+	"errors"
+
 	"github.com/hashicorp/vault/api"
 
 	"encoding/json"
@@ -47,6 +49,13 @@ func (c *Config) AddFromVault(conn *VaultConnection) error {
 	client.SetAddress(conn.Address)
 	client.SetToken(conn.Token)
 	secret, err := client.Logical().Read(conn.Path)
+	if err != nil {
+		return err
+	}
+
+	if secret == nil {
+		return errors.New("Empty vault result.")
+	}
 
 	for key, value := range secret.Data {
 		keyName := conn.ConfigName + key
