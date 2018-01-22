@@ -1,14 +1,16 @@
 package config
 
 import (
-	"errors"
-
-	"github.com/hashicorp/vault/api"
-
+	"bytes"
 	"encoding/json"
+	"errors"
+	"io"
 	"io/ioutil"
 	"os"
 	"path"
+
+	"github.com/DisposaBoy/JsonConfigReader"
+	"github.com/hashicorp/vault/api"
 )
 
 type VaultConnection struct {
@@ -149,15 +151,19 @@ func (c *Config) MapStr(key string) (res map[string]string) {
 	return
 }
 
-func (c *Config) ReadConfig() (err error) {
+func (c *Config) ReadConfig() error {
 
 	pathToConfig := path.Join(c.workDir, "config.json")
 	configData, err := ioutil.ReadFile(pathToConfig)
 	if err != nil {
-		return
+		return err
 	}
 
-	err = json.Unmarshal(configData, &c.data)
+	reader := JsonConfigReader.New(bytes.NewReader(configData))
+	buf := new(bytes.Buffer)
+	if _, err := io.Copy(buf, reader); err != nil {
+		return err
+	}
 
-	return
+	return json.Unmarshal(buf.Bytes(), &c.data)
 }
