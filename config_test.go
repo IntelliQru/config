@@ -4,7 +4,41 @@ import (
 	"io/ioutil"
 	"os"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
+
+func TestComments(t *testing.T) {
+
+	const FILE_NAME = "./config.json"
+	defer func() {
+		require.NoError(t, os.Remove(FILE_NAME))
+	}()
+
+	for _, src := range []string{
+		`{
+	        "param_str1":"text1",
+	        "param_str2":"text2",
+	        "param_num":50
+		}`,
+		`{
+			// String parameter
+	        "param_str1":"text1",
+	        "param_str2":"text2", // String parameter
+
+	        "param_num":50,
+		}`,
+	} {
+		require.NoError(t, ioutil.WriteFile("./config.json", []byte(src), os.ModePerm))
+
+		conf, err := NewConfig()
+		require.NoError(t, err)
+		require.NoError(t, conf.ReadConfig())
+		require.Equal(t, "text1", conf.Str("param_str1"))
+		require.Equal(t, "text2", conf.Str("param_str2"))
+		require.Equal(t, 50, conf.Int("param_num"))
+	}
+}
 
 func TestRead(t *testing.T) {
 
@@ -17,116 +51,56 @@ func TestRead(t *testing.T) {
         "param_map_str":{"k1":"v1","k2":"v2", "k3":"v3"}
 }`
 
-	ioutil.WriteFile("./config.json", []byte(data), os.ModePerm)
+	const FILE_NAME = "./config.json"
+	require.NoError(t, ioutil.WriteFile(FILE_NAME, []byte(data), os.ModePerm))
+	defer func() {
+		require.NoError(t, os.Remove(FILE_NAME))
+	}()
 
 	conf, err := NewConfig()
-	if err != nil {
-		t.Error(err.Error())
-	}
+	require.NoError(t, err)
+	require.NoError(t, conf.ReadConfig())
+	require.Equal(t, "text", conf.Str("param_str"))
+	require.Equal(t, 50, conf.Int("param_num"))
+	require.Equal(t, float64(50), conf.Float64("param_num"))
+	require.Equal(t, int64(50), conf.Int64("param_num"))
+	require.Equal(t, true, conf.Bool("param_bool"))
 
-	err = conf.ReadConfig()
+	{
+		require.Equal(t,
+			[]interface{}{float64(1), float64(2), float64(3)},
+			conf.Array("param_array_int"))
 
-	if err != nil {
-		t.Error(err.Error())
+		require.Equal(t,
+			[]string{},
+			conf.ArrayStr("param_array_int"))
 	}
 
 	{
-		val := conf.Str("param_str")
-		etalon := "text"
-		if val != etalon {
-			t.Errorf("'%s' != '%s'", val, etalon)
-		}
+		require.Equal(t,
+			[]interface{}{"1", "2", "3"},
+			conf.Array("param_array_str"))
+
+		require.Equal(t,
+			[]string{"1", "2", "3"},
+			conf.ArrayStr("param_array_str"))
 	}
 
 	{
-		val := conf.Int("param_num")
-		etalon := 50
-		if val != etalon {
-			t.Errorf("%#v != %v", val, etalon)
-		}
-	}
+		require.Equal(t,
+			map[string]interface{}{
+				"k1": "v1",
+				"k2": "v2",
+				"k3": "v3",
+			},
+			conf.Map("param_map_str"))
 
-	{
-		val := conf.Float64("param_num")
-		etalon := 50.0
-		if val != etalon {
-			t.Errorf("%#v != %v", val, etalon)
-		}
-	}
-
-	{
-		val := conf.Int64("param_num")
-		etalon := int64(50)
-		if val != etalon {
-			t.Errorf("%#v != %v", val, etalon)
-		}
-	}
-
-	{
-		val := conf.Bool("param_bool")
-		etalon := true
-		if val != etalon {
-			t.Errorf("%#v != %v", val, etalon)
-		}
-	}
-
-	{
-		val := conf.Array("param_array_int")
-		etalon := []interface{}{1, 2, 3}
-		if len(val) != len(etalon) {
-			t.Errorf("%#v != %#v", val, etalon)
-		}
-
-		for i, vEtalon := range etalon {
-			vRetval := val[i]
-			if vEtalon.(int) != int(vRetval.(float64)) {
-				t.Errorf("%#v != %#v", vEtalon, vRetval)
-			}
-		}
-	}
-
-	{
-		val := conf.Array("param_array_str")
-		etalon := []interface{}{"1", "2", "3"}
-		if len(val) != len(etalon) {
-			t.Errorf("%#v != %#v", val, etalon)
-		}
-
-		for i, vEtalon := range etalon {
-			vRetval := val[i]
-			if vEtalon.(string) != vRetval.(string) {
-				t.Errorf("%#v != %#v", vEtalon, vRetval)
-			}
-		}
-	}
-
-	{
-		val := conf.Map("param_map_str")
-		etalon := map[string]interface{}{"k1": "v1", "k2": "v2", "k3": "v3"}
-		if len(val) != len(etalon) {
-			t.Errorf("%#v != %#v", val, etalon)
-		}
-
-		for kEtalon, vEtalon := range etalon {
-			vRetval := val[kEtalon]
-			if vEtalon.(string) != vRetval.(string) {
-				t.Errorf("%s: %#v != %#v", kEtalon, vEtalon, vRetval)
-			}
-		}
-	}
-
-	{
-		val := conf.MapStr("param_map_str")
-		etalon := map[string]string{"k1": "v1", "k2": "v2", "k3": "v3"}
-		if len(val) != len(etalon) {
-			t.Errorf("%#v != %#v", val, etalon)
-		}
-
-		for kEtalon, vEtalon := range etalon {
-			vRetval := val[kEtalon]
-			if vEtalon != vRetval {
-				t.Errorf("%s: %#v != %#v", kEtalon, vEtalon, vRetval)
-			}
-		}
+		require.Equal(t,
+			map[string]string{
+				"k1": "v1",
+				"k2": "v2",
+				"k3": "v3",
+			},
+			conf.MapStr("param_map_str"))
 	}
 }
